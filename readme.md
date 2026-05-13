@@ -40,8 +40,6 @@ Hallucination_Detection/
 
 ## 3. Pipeline Execution (job1 -> job4)
 
-Each job script is written for an HPC job scheduler (assuming PJM).
-Please adapt `#PJM` lines and `module load` settings to your environment.
 
 1. **job1: Generation (`gen/job1.sh`)**
    - Runs `gen/generation/generate_answers.py` and generates `r=5` answers per sample for the selected model and dataset.
@@ -87,17 +85,18 @@ bash gen/job3.sh
 bash Detection/job4.sh
 ```
 
-## 4. Customization
+## Citation
 
-- **Switch model/data**: Override `MODEL_NAME`, `DATA_NAME`, `DATA_DIR`, `SAVE_DIR`, etc. with environment variables.
-  Example: `MODEL_NAME=mistral_12b bash gen/job1.sh`
-- **API settings**: Even without Azure OpenAI, the scripts can work with compatible endpoints via `OPENAI_API_KEY`. If required variables are missing, scripts stop with explicit errors.
-- **Cache paths**: Override `HF_HOME`, `TRANSFORMERS_CACHE`, `HF_DATASETS_CACHE`, `TRITON_CACHE_DIR` in `.env` when needed.
+If you use this repository, please cite:
 
-## 5. Troubleshooting
-
-- **API key errors**: Confirm `AZURE_OPENAI_API_KEY` and `AZURE_OPENAI_ENDPOINT` are set in `.env`.
-- **Missing data**: Confirm `Data/<MODEL_NAME>/<DATA_NAME>/` exists and `job1` completed successfully.
-- **BioASQ load failure**: Confirm `BIOASQ_TRAIN_PATH` points to a valid JSON file.
-
-For public repositories, use this README and `.env.example`, and keep environment-specific settings in `.env` and at the top of job scripts.
+```bibtex
+@misc{fujikawa2026maxpoolingnetworkrevisitedanalyzing,
+      title={Max-pooling Network Revisited: Analyzing the Role of Semantic Probability in Multiple Instance Learning for Hallucination Detection},
+      author={Shota Fujikawa and Issei Sato},
+      year={2026},
+      eprint={2605.08863},
+      archivePrefix={arXiv},
+      primaryClass={cs.CL},
+      url={https://arxiv.org/abs/2605.08863},
+}
+```
