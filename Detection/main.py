@@ -25,6 +25,7 @@ FEATURES = {
 
 NUM_LAYER = {
     'llama3_8b': 17,
+    'llama3_8b_Instruct': 17,
     'llama3_70b': 14,
     'mistral_12b': 11
 }
@@ -50,18 +51,18 @@ def main(args):
     val_data_name = args.test_data_list[0]
 
     # ==================== Layer range ====================
-    total_layers = NUM_LAYER[args.model_name]
-    start_layer = 0
-    end_layer = args.end_layer if args.end_layer is not None else total_layers
-    interval = args.interval_layer
-
-    print(f"\nLayer Range: {start_layer} ~ {end_layer - 1} (step={interval})")
+    # Stored-layer file indices (*_layer{idx}.pkl); --layers overrides the default range
+    if args.layers:
+        layer_list = [int(x) for x in args.layers.split(',')]
+    else:
+        layer_list = list(range(NUM_LAYER[args.model_name]))
+    print(f"\nLayers: {layer_list}")
 
     val_results = []
+    summary = {}
 
     # ==================== Layer Loop ====================
-    for idx_layer in range(start_layer, end_layer, interval):
-        idx_layer = 7
+    for idx_layer in layer_list:
         print(f"\n==============================")
         print(f">>> Layer {idx_layer} - Start training")
         print(f"==============================")
@@ -92,7 +93,8 @@ def main(args):
             pooling_method=args.pooling_method,
             reduced_dim=args.reduced_dim,
             p_norm=args.p_norm,
-            device=device
+            device=device,
+            pos_weight=args.pos_weight
         )
         model.to(device)
 
@@ -142,6 +144,9 @@ def main(args):
                 f"Last_AUC={test_auc:.4f}"
             )
 
+        summary[idx_layer] = {"val_auc_best": float(val_best), "test_auc_best": float(test_auc_best),
+                              "test_auc_last": float(test_auc)}
+
         # Release memory
         del model
         del model_best
@@ -153,6 +158,15 @@ def main(args):
     print("\nValidation Summary:")
     for layer, best_auc, last_auc in val_results:
         print(f"Layer {layer}: Best={best_auc:.4f}, Last={last_auc:.4f}")
+
+    # Layer chosen by validation AUC only; its test AUC is the reported number
+    sel = max(summary, key=lambda k: summary[k]["val_auc_best"])
+    print(f"\nValidation-selected layer {sel}: val AUC {summary[sel]['val_auc_best']:.4f}, "
+          f"test AUC {summary[sel]['test_auc_best']:.4f}")
+    out_dir = os.path.join(args.save_dir, args.model_name)
+    os.makedirs(out_dir, exist_ok=True)
+    with open(os.path.join(out_dir, f"{original_train_data}_{args.pooling_method}_s{args.seed}_summary.json"), "w") as f:
+        json.dump({"selected_layer": sel, "layers": summary, "pos_weight": args.pos_weight}, f, indent=1)
 
 
 # ===============================
@@ -170,9 +184,12 @@ if __name__ == "__main__":
     parser.add_argument('--p_norm', type=float, default=10.0)
 
     # Layer control
-    parser.add_argument('--start_layer', type=int, default=0)
-    parser.add_argument('--end_layer', type=int, default=None)
-    parser.add_argument('--interval_layer', type=int, default=1)
+    parser.add_argument('--layers', type=str, default='',
+                        help='comma-separated stored-layer indices to search (default: all)')
+    parser.add_argument('--mode', type=str, default='none',
+                        help="'reg' L2-normalises every hidden state; 'none' keeps them as stored")
+    parser.add_argument('--fixed_split', action='store_true',
+                        help='split validation/test by id prefix (LongFact++) instead of random sampling')
 
     # Training
     parser.add_argument('--batch_size', type=int, default=128)
@@ -181,6 +198,8 @@ if __name__ == "__main__":
     parser.add_argument('--save_dir', type=str, default='results')
     parser.add_argument("--val_interval", type=int, default=1)
     parser.add_argument('--reduced_dim', type=int, default=512)
+    parser.add_argument('--pos_weight', type=float, default=1.0,
+                        help='positive-class (hallucinated) weight in the BCE loss; 1.0 = unweighted')
 
     args = parser.parse_args()
     main(args)

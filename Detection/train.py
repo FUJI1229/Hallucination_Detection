@@ -80,6 +80,6 @@ def train(args, all_hidden_list, all_label_list, train_loader,
     save_path = f"{args.save_dir}/{args.model_name}"
     os.makedirs(save_path, exist_ok=True)
     torch.save(model_best.state_dict(),
-               f"{save_path}/{args.data_name}_{args.pooling_method}_{idx_layer}_best.pth")
+               f"{save_path}/{args.data_name}_{args.pooling_method}_{idx_layer}_s{args.seed}_best.pth")
 
     return model, model_best, val_auc, best_score, best_th

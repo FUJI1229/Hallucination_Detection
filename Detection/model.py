@@ -44,7 +44,7 @@ class GatedAttentionPooler(nn.Module):
         return z, alpha
 
 class Detection_Model(nn.Module):
-    def __init__(self, n_features=4096, reduced_dim=256,pooling_method='max', p_norm=10.0, device="cuda"):
+    def __init__(self, n_features=4096, reduced_dim=256,pooling_method='max', p_norm=10.0, device="cuda", pos_weight=1.0):
         super().__init__()
         self.device = torch.device(device if torch.cuda.is_available() else "cpu")
         self.pooling_method = pooling_method
@@ -68,7 +68,8 @@ class Detection_Model(nn.Module):
         self.bag_classifier = nn.Linear(self.feature_dim, 1).to(self.device)
         self.attention_pooler = AttentionPooler(self.feature_dim, attn_dim=attn_hidden_dim).to(self.device)
         self.gated_attention_pooler = GatedAttentionPooler(self.feature_dim, attn_dim=attn_hidden_dim).to(self.device)
-        self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([0.3]).to(self.device))
+        # Unweighted loss by default (pos_weight=1.0 on the hallucinated class)
+        self.criterion = nn.BCEWithLogitsLoss(pos_weight=torch.tensor([pos_weight]).to(self.device))
     def forward(self, hidden_states, labels=None):
         bag_logits = []
         bag_scores = []

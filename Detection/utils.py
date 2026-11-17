@@ -22,12 +22,21 @@ def load_jsonl_data(path, key_name=None):
     return data
 
 def load_pickle_data(path):
-    """Pickle loader for main data including hidden states (h_out)."""
+    """Pickle loader for main data including hidden states (h_out).
+
+    A file may hold several pickled dicts written one after another (the
+    LongFact++ extractor writes chunks of 50 answers); all are merged."""
     if not os.path.exists(path):
         print(f"Warning: File not found {path}")
         return {}
+    data = {}
     with open(path, 'rb') as f:
-        return pickle.load(f)
+        while True:
+            try:
+                data.update(pickle.load(f))
+            except EOFError:
+                break
+    return data
 
 def idx2prob(semantic_ids_dict, used_sample=6):
     se_prob_dict = {}
@@ -71,9 +80,6 @@ def load_embedding_train(args, idx_layer):
             
         hiddens = h_out_raw if isinstance(h_out_raw, torch.Tensor) else torch.tensor(h_out_raw)
         
-        hiddens = hiddens[:, args.start_layer::args.interval_layer, :] \
-            if args.end_layer is None \
-            else hiddens[:, args.start_layer:args.end_layer:args.interval_layer, :]
         if args.mode == 'reg':
             hiddens = hiddens / (hiddens.norm(dim=-1, keepdim=True) + 1e-8)
         label = 1.0 - acc
@@ -90,8 +96,12 @@ def load_embedding_val(args, idx_layer):
     loaded_data_dict = load_pickle_data(datapath)
     acc_test_loaded_data = load_jsonl_data(acc_test_datapath, key_name='accuracy')
     tids = list(loaded_data_dict.keys())
-    random.seed(args.seed)
-    val_sampled_tids = set(random.sample(tids, min(len(tids), args.val_sample)))
+    if getattr(args, 'fixed_split', False):
+        # LongFact++: the split is fixed by the id prefix (validation| / test|)
+        val_sampled_tids = {t for t in tids if str(t).startswith('validation|')}
+    else:
+        random.seed(args.seed)
+        val_sampled_tids = set(random.sample(tids, min(len(tids), args.val_sample)))
     val_hidden_list, val_label_list = [], []
     test_hidden_list, test_label_list, test_qa_list = [], [], []
 
@@ -119,9 +129,6 @@ def load_embedding_val(args, idx_layer):
             
             hiddens = h_out_raw if isinstance(h_out_raw, torch.Tensor) else torch.tensor(h_out_raw)
             
-            hiddens = hiddens[:, args.start_layer::args.interval_layer, :] \
-                if args.end_layer is None \
-                else hiddens[:, args.start_layer:args.end_layer:args.interval_layer, :]
             if args.mode == 'reg':
                 hiddens = hiddens / (hiddens.norm(dim=-1, keepdim=True) + 1e-8)
             ans_tokens = generations[m].get('tokens')

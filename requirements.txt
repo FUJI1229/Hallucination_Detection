@@ -36,6 +36,7 @@ psutil==7.2.2
 pydantic==2.13.2
 pydantic_core==2.46.2
 Pygments==2.20.0
+pyarrow==21.0.0
 pyparsing==3.3.2
 python-dateutil==2.9.0.post0
 python-dotenv==1.2.2
